@@ -1,0 +1,63 @@
+<html>
+   <head>
+      {{>header}}
+   </head>
+   <body>
+      <div class="header">
+         <h1>{{thread.subject}}</h1>
+         <div class="errors">
+            {{#errors}}
+            <p class="error">{{.}}</p>
+            {{/errors}}
+         </div>
+         <div class="nav">
+            <a href="/">Thread list</a>
+         </div>
+      </div>
+      <div class="posts">
+         {{#posts}}
+         <div class="post" id="p{{pid}}">
+            <div class="postinfo">
+               <span class="username">{{realUsername}}</span>
+               <span class="trip">{{trip}}</span>
+               <time datetime="{{createdOn}}">{{createdOn}}</time>
+               <a href="{{link}}" class="postlink">{{pid}}</a>
+            </div>
+            {{#hasImage}}
+            <div class="postimage">
+               <a class="directlink" href="{{imageLink}}">{{imageLink}}</a>
+               <img src="{{imageLink}}">
+            </div>
+            {{/hasImage}}
+            <span class="content" data-pid="{{pid}}">{{{content}}}</span>
+            {{#isAdmin}}
+            <form action="/admin" method="post" class="deleteForm"
+               onsubmit="return confirm('Deletion is permanent and data is unrecoverable. Really delete?');">
+               <input type="hidden" name="adminid" value="{{adminID}}">
+               <input type="hidden" name="action" value="deletepost">
+               <input type="hidden" name="pid" value="{{pid}}">
+               <input type="hidden" name="redirect" value="{{requestUri}}">
+               <input type="submit" value="Delete">
+            </form>
+            {{^isBanned}}
+            <form action="/admin" method="post" class="blockForm"
+               onsubmit="return confirm('Bans are permenent. Are you sure you want to ban IP {{ipAddress}}?');">
+               <input type="hidden" name="adminid" value="{{adminID}}">
+               <input type="hidden" name="action" value="blockip">
+               <input type="hidden" name="ip" value="{{ipAddress}}">
+               <input type="hidden" name="redirect" value="{{requestUri}}">
+               <input type="submit" value="Block IP">
+            </form>
+            {{/isBanned}}
+            {{/isAdmin}}
+         </div>
+         {{/posts}}
+               </div>
+      {{^errors}}
+      {{>postform}}
+      {{/errors}}
+      <div class="footer">
+         {{>footer}}
+      </div>
+   </body>
+</html>

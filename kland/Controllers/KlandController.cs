@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Amazon.S3;
 using kland.Db;
@@ -65,10 +66,7 @@ public class KlandController : ControllerBase
     }
 
     [HttpGet("robots.txt")]
-    public string GetRobots()
-    {
-        return "User-agent: *\nDisallow: /\n";
-    }
+    public string GetRobots() { return "User-agent: *\nDisallow: /\n"; }
 
     [HttpGet()]
     public async Task<ContentResult> GetIndexAsync()
@@ -76,7 +74,7 @@ public class KlandController : ControllerBase
         //Need to look up threads? AND posts?? wow 
         var data = GetDefaultData();
         var threads = dbContext.Threads.Include(x => x.Posts).Where(x => !x.deleted);
-        data["threads"] = threads.Select(x => new ThreadView
+        data["threads"] = await threads.Select(x => new ThreadView
         {
             tid = x.tid,
             subject = x.subject,
@@ -84,11 +82,51 @@ public class KlandController : ControllerBase
             postCount = x.Posts.Count(),
             lastPostOn = x.Posts.Max(x => (DateTime?)x.created) ?? new DateTime(0),
             link = $"/thread/{x.tid}",
-        }).OrderByDescending(x => x.tid).ToList();
+        }).OrderByDescending(x => x.tid).ToListAsync();
 
         return new ContentResult{
             ContentType = "text/html",
-            Content = await pageRenderer.RenderPageAsync("threads", data)
+            Content = await pageRenderer.RenderPageAsync("index", data)
+        };
+    }
+
+    [HttpGet("thread/{id}")]
+    public async Task<IActionResult> GetThreadAsync([FromRoute]int id)
+    {
+        var data = GetDefaultData();
+        var thread = await dbContext.Threads.Where(x => x.tid == id).FirstOrDefaultAsync();
+
+        if(thread == null || thread.deleted)
+            return NotFound();
+
+        var posts = dbContext.Posts.Include(x => x.Thread).Where(x => x.tid == id);
+
+        //  return substr(base64_encode(hash("sha512", $this->tripRaw, true)), 0, 10);
+        using(var sha512 = SHA512.Create())
+        {
+            var realPosts = await posts.Select(x => new PostView
+            {
+                tid = x.tid,
+                pid = x.pid,
+                content = x.content,
+                createdOn = x.created,
+                ipAddress = x.ipaddress,
+                trip = string.IsNullOrEmpty(x.tripraw) ? "" : Convert.ToBase64String(
+                    sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(x.tripraw))).Substring(0, 10),
+                realUsername = string.IsNullOrEmpty(x.username) ? "Anonymous" : x.username,
+                link = $"/thread/{x.tid}#p{x.pid}",
+                imageLink = $"/i/{x.image ?? "UNDEFINED"}",
+                isBanned = false, //TODO: GET BANS
+                hasImage = !string.IsNullOrEmpty(x.image)
+            }).OrderByDescending(x => x.tid).ToListAsync();
+
+            data["thread"] = thread;
+            data["posts"] = realPosts;
+        }
+
+        return new ContentResult{
+            ContentType = "text/html",
+            Content = await pageRenderer.RenderPageAsync("thread", data)
         };
     }
 
