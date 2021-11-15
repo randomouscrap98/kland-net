@@ -1,0 +1,16 @@
+[Unit]
+Description=Kland dotnet (new)
+
+[Service]
+WorkingDirectory=/var/www/kland
+ExecStart=/var/www/kland/kland
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=contentapi
+User=www-data
+# Environment=ASPNETCORE_ENVIRONMENT=Production
+# Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+[Install]
+WantedBy=multi-user.target

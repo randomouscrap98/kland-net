@@ -37,6 +37,9 @@ public class KlandController : ControllerBase
     protected IPageRenderer pageRenderer;
     protected Random random;
 
+    public static readonly object ImageHashLock = new object();
+    public static readonly object ThreadHashLock = new object();
+
     public KlandController(ILogger<KlandController> logger, KlandDbContext dbContext, IAmazonS3 s3client,
         KlandControllerConfig config, IPageRenderer pageRenderer)
     {
@@ -61,7 +64,7 @@ public class KlandController : ControllerBase
         var adminid = Request.Cookies[AdminIdKey] ?? "";
         return new Dictionary<string, object>()
         {
-            { "wwwrootversion", "1" },
+            { "wwwrootversion", GetType().Assembly.GetName().Version?.ToString() ?? "UNKNOWN" },
             { "isAdmin", adminid == config.AdminId},
             { AdminIdKey, adminid },
             { PostStyleKey, Request.Cookies[PostStyleKey] ?? "" },
