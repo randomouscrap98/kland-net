@@ -2,8 +2,10 @@ using Amazon.S3;
 using kland;
 using kland.Controllers;
 using kland.Db;
+using kland.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +26,8 @@ services.AddDbContext<KlandDbContext>(opts =>
 {
     opts.UseSqlite(builder.Configuration.GetConnectionString("kland"));
 });
+
+services.AddSingleton<IPageRenderer, MustacheRenderer>();
 
 //I want the ACTUAL configs in the service
 AddConfigBinding<KlandControllerConfig>(services, configuration);

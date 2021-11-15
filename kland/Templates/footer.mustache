@@ -1,0 +1,7 @@
+<form action="/settings" method="post" class="settingsform">
+   <input name="poststyle" value="{{postStyle}}" placeholder="Style from post#">
+   <input name="adminid" value="{{adminID}}" {{#isAdmin}}data-admin{{/isAdmin}} placeholder="Admin ID">
+   <input type="hidden" name="redirect" value="{{requestUri}}">
+   <input type="submit" value="Set">
+</form>
+<a href="/image">Upload Images Without Posting</a>

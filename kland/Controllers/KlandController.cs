@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Amazon.S3;
 using kland.Db;
+using kland.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace kland.Controllers;
@@ -22,14 +23,16 @@ public class KlandController : ControllerBase
     protected IAmazonS3 s3client;
     protected KlandControllerConfig config;
     protected Regex idRegex;
+    protected IPageRenderer pageRenderer;
 
     public KlandController(ILogger<KlandController> logger, KlandDbContext dbContext, IAmazonS3 s3client,
-        KlandControllerConfig config)
+        KlandControllerConfig config, IPageRenderer pageRenderer)
     {
         _logger = logger;
         this.dbContext = dbContext;
         this.s3client = s3client;
         this.config = config;
+        this.pageRenderer = pageRenderer;
 
         //Just don't even bother if the config has no bucket. We want to immediately know when this is broken,
         //so it's ok to break the entire kland for this!
@@ -38,6 +41,20 @@ public class KlandController : ControllerBase
 
         idRegex = new Regex(config.IdRegex ?? throw new InvalidOperationException("No image ID regex!"), 
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    }
+
+    [HttpGet()]
+    public async Task<ContentResult> GetIndexAsync()
+    {
+        //Need to look up threads? AND posts?? wow 
+
+        return new ContentResult{
+            ContentType = "text/html",
+            Content = await pageRenderer.RenderPageAsync("threads", new Dictionary<string, string>()
+            {
+
+            })
+        };
     }
 
     [HttpGet("i/{id}")]
@@ -55,7 +72,6 @@ public class KlandController : ControllerBase
             var obj = await s3client.GetObjectAsync(config.Bucket, id);
             Response.Headers.Add("ETag", config.ETagPrepend + id);
             return File(obj.ResponseStream, "image/" + match.Groups[1].Value?.TrimStart('.')); 
-            //System.IO.File.OpenRead(finalPath), fileData.fileType);
         }
         catch(Exception ex)
         {

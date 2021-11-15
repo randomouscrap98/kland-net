@@ -1,0 +1,36 @@
+<html>
+   <head>
+        {{>header}}
+    </head>
+   <body>
+      <div class="header">
+         <h1>i'm soooo tired</h1>
+         <div class="errors">
+         </div>
+      </div>
+        {{>postform}}
+        <div class="threads">
+            {{#data.threads}}
+            <div class="thread">
+                <a href="{{link}}">{{subject}}</a>
+                <time class="lastpost" datetime="{{lastPostOn}}">{{lastPostOn}}</time>
+                <time class="firstpost" datetime="{{createdOn}}">{{createdOn}}</time>
+                <span class="posts">P:{{postCount}}</span>
+                {{#isAdmin}}
+                <form action="/admin" method="post" class="deleteForm"
+                onsubmit="return confirm('Deleting a thread is difficult to undo. Really delete?');">
+                <input type="hidden" name="adminid" value="{{adminID}}">
+                <input type="hidden" name="action" value="deletethread">
+                <input type="hidden" name="tid" value="{{tid}}">
+                <input type="hidden" name="redirect" value="{{requestUri}}">
+                <input type="submit" value="Delete">
+                </form>
+                {{/isAdmin}}
+            </div>
+            {{/data.threads}}
+        </div>
+        <div class="footer">
+            {{>footer}}
+        </div>
+    </body>
+</html>
