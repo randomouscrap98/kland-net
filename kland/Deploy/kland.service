@@ -3,7 +3,7 @@ Description=Kland dotnet (new)
 
 [Service]
 WorkingDirectory=/var/www/kland
-ExecStart=/var/www/kland/kland
+ExecStart=/var/www/kland/kland --urls "http://localhost:5010"
 Restart=always
 RestartSec=10
 KillSignal=SIGINT

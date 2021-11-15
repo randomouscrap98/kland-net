@@ -35,6 +35,12 @@ public class KlandBase : ControllerBase
         return builder.ToString();
     }
 
+    protected bool StringToBool(string value)
+    {
+        value = value.Trim().ToLower();
+        return value != null && value != "0" && value != "false" && value != "undefined" && value != "null";
+    }
+
     protected Task<List<PostView>> ConvertPosts(IQueryable<Post> query)
     {
         using(var sha512 = SHA512.Create())
