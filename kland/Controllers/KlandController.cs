@@ -1,7 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
-using Amazon.S3;
 using kland.Db;
 using kland.Interfaces;
 using kland.Views;
@@ -13,50 +9,22 @@ namespace kland.Controllers;
 
 public class KlandControllerConfig
 {
-    public string? StaticBase {get;set;}
-    public string? Bucket {get;set;}
-    public string? IdRegex {get;set;}
-    public string? ETagPrepend {get;set;}
     public string AdminId {get;set;} = "PLEASECHANGE";
     public double CookieExpireHours {get;set;}
 }
 
 [ApiController]
 [Route("")] //Default route goes here?
-public class KlandController : ControllerBase
+public class KlandController : KlandBase
 {
-    public const string AdminIdKey = "adminId";
-    public const string PostStyleKey = "postStyle";
-    public const string OrphanedPrepend = "Internal_OrphanedImages";
-
-    private readonly ILogger _logger;
-    protected KlandDbContext dbContext;
-    protected IAmazonS3 s3client;
     protected KlandControllerConfig config;
-    protected Regex idRegex;
     protected IPageRenderer pageRenderer;
-    protected Random random;
 
-    public static readonly object ImageHashLock = new object();
-    public static readonly object ThreadHashLock = new object();
-
-    public KlandController(ILogger<KlandController> logger, KlandDbContext dbContext, IAmazonS3 s3client,
-        KlandControllerConfig config, IPageRenderer pageRenderer)
+    public KlandController(ILogger<KlandController> logger, KlandDbContext dbContext,
+        KlandControllerConfig config, IPageRenderer pageRenderer) : base(logger, dbContext)
     {
-        _logger = logger;
-        this.dbContext = dbContext;
-        this.s3client = s3client;
         this.config = config;
         this.pageRenderer = pageRenderer;
-        this.random = new Random();
-
-        //Just don't even bother if the config has no bucket. We want to immediately know when this is broken,
-        //so it's ok to break the entire kland for this!
-        if(string.IsNullOrWhiteSpace(config.Bucket))
-            throw new InvalidOperationException("No bucket set for images!");
-
-        idRegex = new Regex(config.IdRegex ?? throw new InvalidOperationException("No image ID regex!"), 
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
     }
 
     protected Dictionary<string, object> GetDefaultData()
@@ -70,16 +38,6 @@ public class KlandController : ControllerBase
             { PostStyleKey, Request.Cookies[PostStyleKey] ?? "" },
             { "requestUri", Request.GetDisplayUrl() }
         };
-    }
-
-    protected string GetRandomAlphaString(int count)
-    {
-        var builder = new StringBuilder();
-
-        for(var i = 0; i < count; i++)
-            builder.Append((char)('a' + (random.Next() % 26)));
-
-        return builder.ToString();
     }
 
     [HttpGet("robots.txt")]
@@ -105,29 +63,6 @@ public class KlandController : ControllerBase
             ContentType = "text/html",
             Content = await pageRenderer.RenderPageAsync("index", data)
         };
-    }
-
-    protected Task<List<PostView>> ConvertPosts(IQueryable<Post> query)
-    {
-        //  return substr(base64_encode(hash("sha512", $this->tripRaw, true)), 0, 10);
-        using(var sha512 = SHA512.Create())
-        {
-            return query.Select(x => new PostView
-            {
-                tid = x.tid,
-                pid = x.pid,
-                content = x.content,
-                createdOn = x.created,
-                ipAddress = x.ipaddress,
-                trip = string.IsNullOrEmpty(x.tripraw) ? "" : Convert.ToBase64String(
-                    sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(x.tripraw))).Substring(0, 10),
-                realUsername = string.IsNullOrEmpty(x.username) ? "Anonymous" : x.username,
-                link = $"/thread/{x.tid}#p{x.pid}",
-                imageLink = $"/i/{x.image ?? "UNDEFINED"}",
-                isBanned = false, //TODO: GET BANS
-                hasImage = !string.IsNullOrEmpty(x.image)
-            }).OrderByDescending(x => x.tid).ToListAsync();
-        }
     }
 
     [HttpGet("thread/{id}")]
@@ -244,28 +179,5 @@ public class KlandController : ControllerBase
     public string PostAdmin()
     {
         return "kland is readonly for now, sorry";
-    }
-
-    [HttpGet("i/{id}")]
-    [ResponseCache(Duration = 13824000)] //six months
-    public async Task<IActionResult> GetImageAsync([FromRoute] string id) //, [FromQuery] GetFileModify modify)
-    {
-        var match = idRegex.Match(id);
-
-        if(!match.Success)
-            return BadRequest($"Image ID not in specified format: {config.IdRegex}");
-
-        //Go get it from s3
-        try
-        {
-            var obj = await s3client.GetObjectAsync(config.Bucket, id);
-            Response.Headers.Add("ETag", config.ETagPrepend + id);
-            return File(obj.ResponseStream, "image/" + match.Groups[1].Value?.TrimStart('.')); 
-        }
-        catch(Exception ex)
-        {
-            _logger.LogError($"Exception during image request: {ex}");
-            return NotFound();
-        }
     }
 }

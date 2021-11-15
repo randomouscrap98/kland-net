@@ -30,6 +30,7 @@ services.AddDbContext<KlandDbContext>(opts =>
 services.AddSingleton<IPageRenderer, MustacheRenderer>();
 
 //I want the ACTUAL configs in the service
+AddConfigBinding<KlandImageHostControllerConfig>(services, configuration);
 AddConfigBinding<KlandControllerConfig>(services, configuration);
 AddConfigBinding<RenderConfig>(services, configuration);
 

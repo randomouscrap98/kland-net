@@ -1,5 +1,7 @@
 # General publish script for dotnet core projects
 
+cd ..
+
 name="kland"
 phost=csanchez@smilebasicsource.com   # The production server (and user to connect)
 pfolder="/var/www/${name}"            # The REMOTE location to PLACE all files
@@ -15,12 +17,13 @@ removefiles=kland.db
 mtype=linux-x64         # The architecture of the target machine
 corev=6.0               # The version of dotnet core we're using
 projfile=${name}.csproj # The project file for version updating / etc
+bconfig=Release         # Build configuration (if you have one)
 
 postinstallscript="postinstall.sh"
 postinstallargs=""
 
 # My places!
-lpfolder="./bin/Release/netcoreapp$corev/$mtype/publish/"   # The LOCAL location to retrieve binaries
+lpfolder="./bin/${bconfig}/net$corev/$mtype/publish/"   # The LOCAL location to retrieve binaries
 cwd="`pwd`"
 
 echo "Publishing to $phost:$pfolder"
@@ -40,7 +43,7 @@ sed -i "s/<Version>[0-9]*[0-9]\.[0-9]*[0-9]\.[0-9]*[0-9]\.[0-9]*[0-9]/&@/g;:a {s
 # doesn't include our personal extras (it probably could though)
 rm -rf "$lpfolder"
 # WARN: DON'T PUBLISH SINGLE! IT FILLS THE TEMP DIRECTORY!!
-dotnet publish -r $mtype -c Release
+dotnet publish -r $mtype --self-contained -c ${bconfig}
 
 # Copy desired files into publish folder
 for cpyfl in $copyfolders
@@ -57,5 +60,5 @@ done
 # Now put the stuff on the server! A simple direct copy
 hostrsync "$lpfolder" "$pfolder"
 
-# And then chmod! The main running file should be executable
-ssh $phost -p $port "cd $pfolder; chmod 750 ${name}; test -f $postinstallscript && ./$postinstallscript $postinstallargs"
+# And then run the post install! This is a script already on the server that knows more what to do per environment.
+ssh $phost -p $port "cd $pfolder; test -f $postinstallscript && ./$postinstallscript $postinstallargs"
