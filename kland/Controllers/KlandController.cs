@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Amazon.S3;
 using kland.Db;
@@ -26,6 +27,7 @@ public class KlandController : ControllerBase
 {
     public const string AdminIdKey = "adminId";
     public const string PostStyleKey = "postStyle";
+    public const string OrphanedPrepend = "Internal_OrphanedImages";
 
     private readonly ILogger _logger;
     protected KlandDbContext dbContext;
@@ -33,6 +35,7 @@ public class KlandController : ControllerBase
     protected KlandControllerConfig config;
     protected Regex idRegex;
     protected IPageRenderer pageRenderer;
+    protected Random random;
 
     public KlandController(ILogger<KlandController> logger, KlandDbContext dbContext, IAmazonS3 s3client,
         KlandControllerConfig config, IPageRenderer pageRenderer)
@@ -42,6 +45,7 @@ public class KlandController : ControllerBase
         this.s3client = s3client;
         this.config = config;
         this.pageRenderer = pageRenderer;
+        this.random = new Random();
 
         //Just don't even bother if the config has no bucket. We want to immediately know when this is broken,
         //so it's ok to break the entire kland for this!
@@ -63,6 +67,16 @@ public class KlandController : ControllerBase
             { PostStyleKey, Request.Cookies[PostStyleKey] ?? "" },
             { "requestUri", Request.GetDisplayUrl() }
         };
+    }
+
+    protected string GetRandomAlphaString(int count)
+    {
+        var builder = new StringBuilder();
+
+        for(var i = 0; i < count; i++)
+            builder.Append((char)('a' + (random.Next() % 26)));
+
+        return builder.ToString();
     }
 
     [HttpGet("robots.txt")]
@@ -133,23 +147,57 @@ public class KlandController : ControllerBase
         };
     }
 
+    public class GetImageQuery
+    {
+        public string? bucket {get;set;}
+        public bool asJSON {get;set;}
+        public int page {get;set;}
+        public int? ipp {get;set;}
+        public string? view {get;set;}
+    }
+
     [HttpGet("image")]
-    public async Task<IActionResult> GetImageList([FromQuery]string bucket)
+    public async Task<IActionResult> GetImageList([FromQuery]GetImageQuery query)
     {
         var data = GetDefaultData();
+
+        var page = query.page;
+        var view = query.view ?? "";
+        var bucket = query.bucket ?? "";
+        var ipp = query.ipp ?? 20;
+        int.TryParse(Request.Cookies["ipp"], out ipp);
+        if(page < 1) page = 1;
+
         data["bucket"] = bucket;
+        data["ipp"] = ipp;
+        data["view"] = view;
+        data["page"] = page;
+        data["nextPage"] = page + 1;
+        if(page > 1) data["previousPage"] = page - 1;
+        data["hideuploads"] = false; //An OLD setting that we used when abuse was happening
 
-        //???
-        data["publicLink"] = "???";
-        data["readonly"] = false; //??
-        data["ipp"] = 50; //image per page
-        data["hideuploads"] = false; //???
-        data["previousPage"] = 1;
-        data["nextPage"] = 2;
-        data["view"] = "???";
+        kland.Db.Thread? thread = null;
 
-        //Are THESE the images to display???
-        data["pastImages"] = "???";
+        //Hunt for threads based on the hash (which is view)
+        if(!string.IsNullOrEmpty(view))
+        {
+            thread = await dbContext.Threads.Where(x => x.hash == view && x.subject.StartsWith(OrphanedPrepend)).FirstOrDefaultAsync();
+            data["readonly"] = true;
+        }
+        else //This is either normal bucket or... whatever, default bucket
+        {
+            var threadName = OrphanedPrepend;
+            if(!string.IsNullOrEmpty(bucket))
+                threadName += "_" + bucket;
+            thread = await dbContext.Threads.Where(x => x.subject == threadName).FirstOrDefaultAsync();
+        }
+
+        if(thread != null)
+        {
+            data["publicLink"] = $"/image?view={thread.hash}";
+            var postQuery = dbContext.Posts.Where(x => x.tid == thread.tid).OrderByDescending(x => x.pid).Skip((page - 1) * ipp).Take(ipp);
+            data["pastImages"] = await ConvertPosts(postQuery);
+        }
 
         return new ContentResult{
             ContentType = "text/html",

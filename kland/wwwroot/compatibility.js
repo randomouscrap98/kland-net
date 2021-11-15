@@ -68,6 +68,9 @@ else
 function writeCookie(name,value,expireDays)
 {if(hasJSON()&&hasDate())
 {var expire=new Date();var storeValue=Base64.encode(JSON.stringify(value));expireDays=expireDays||356;expire.setTime(expire.getTime()+(expireDays*24*60*60*1000));document.cookie=name+"="+storeValue+"; expires="+expire.toUTCString();}}
+function writeNormalCookie(name,value,expireDays)
+{if(hasJSON()&&hasDate())
+{var expire=new Date();var storeValue=JSON.stringify(value);expireDays=expireDays||356;expire.setTime(expire.getTime()+(expireDays*24*60*60*1000));document.cookie=name+"="+storeValue+"; expires="+expire.toUTCString();}}
 function getAllCookies()
 {var cookies={};var cookieStrings=document.cookie.split(";");for(var i=0;i<cookieStrings.length;i++)
 {var matches=/([^=]+)=(.*)/.exec(cookieStrings[i]);if(matches&&matches.length>=3)

@@ -36,7 +36,7 @@ function gotoBucket()
 }
 function setIPP()
 {
-   writeCookie("ipp", Number(document.getElementById("pickIPP").value));            
+   writeNormalCookie("ipp", Number(document.getElementById("pickIPP").value));            
    location.reload();
 }
 
