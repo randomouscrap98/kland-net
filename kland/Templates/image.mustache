@@ -1,0 +1,94 @@
+<html>
+   <head>
+      {{>header}}
+      <script src="compatibility.js?version={{wwwrootversion}}"></script>
+      <script src="image.js?version={{wwwrootversion}}"></script>
+      <link rel="stylesheet" type="text/css" href="image.css?version={{wwwrootversion}}">
+      <title>Image Uploader {{#bucket}}({{bucket}}){{/bucket}}</title>
+   </head>
+   <body>
+      <div class="header specialblock">
+         <h1>Image Uploader {{#bucket}}({{bucket}}){{/bucket}}</h1>
+         <p>Use this to upload and store images permanently on kland without
+         making a post</p>
+         {{#publicLink}}{{#bucket}}
+         <p>Readonly Bucket link: <a href="{{publicLink}}">{{publicLink}}</a></p>
+         {{/bucket}}{{/publicLink}}
+      </div>
+      {{^readonly}}
+      <form id="uploadform" action="/uploadimage" method="post" enctype="multipart/form-data"
+         class="postform specialblock">
+         <input type="hidden" name="redirect" value="1">
+         <input type="file" name="image" accept="image/*">
+         {{#isAdmin}}
+         <input type="text" name="url" placeholder="OR specify a URL (file overrides it)">
+         {{/isAdmin}}
+         {{#bucket}}
+         <input type="hidden" name="bucket" value="{{bucket}}">
+         {{/bucket}}
+         <input type="submit" value="Upload">
+         <div id="pastediv" class="paste" data-bucket="{{bucket}}" contenteditable="true">
+            <p data-bucket="{{bucket}}">
+               Or, Paste image here (auto uploads) 📷
+            </p>
+         </div>
+      </form>
+      {{/readonly}}
+      <div class="postform extradata specialblock">
+         <div class="bucket">
+            <input id="gotoThisBucket" type="text" value="{{bucket}}" placeholder="bucket" required>
+            <button onclick="gotoBucket();">Goto this bucket</button>
+            <p>Buckets are like public folders. If you don't give out the folder
+               name and it's not easy to guess, it'll be "private"</p>
+         </div>
+         <div class="imagenumber">
+            <input type="number" min="0" max="500" step="10" id="pickIPP"
+                value="{{ipp}}" placeholder="images per page" required>
+            <button onclick="setIPP();">Set images per page</button>
+         </div>
+      </div>
+      {{^hideuploads}}
+      <div class="uploads">
+         <div class="subheader specialblock">
+            <h2>Latest uploads:</h2>
+            {{> imagenav}}
+         </div>
+         <div class="imagelist">
+            {{#pastImages}}
+            <div class="imagecontainer hiddencontrolcontainer">
+               <a href="{{imageLink}}"><img class="specialblock" src="{{imageLink}}"></a>
+               {{#isAdmin}}
+               <div class="hiddencontrols" tabindex="-1">
+                  <form action="/admin" method="post" class="settingsform">
+                     <input type="hidden" name="adminid" value="{{adminID}}">
+                     <input type="hidden" name="action" value="moveimage">
+                     <input type="hidden" name="pid" value="{{pid}}">
+                     <input type="hidden" name="redirect" value="{{requestUri}}">
+                     <input type="input" name="bucket" placeholder="Move to bucket">
+                     <input type="submit" value="Move">
+                  </form>
+               </div>
+               {{/isAdmin}}
+            </div>
+            {{/pastImages}}
+         </div>
+         <div class="subheader specialblock">
+            {{> imagenav}}
+         </div>
+      </div>
+      {{/hideuploads}}
+      <canvas style="display: none;" id="scratchCanvas">
+      </canvas>
+      <div id="slideshow" data-hide>
+         <img class="fillcenter" id="slideshowimage">
+         <div class="slideshownav">
+            <button id="slideshowexit">Exit</button>
+            <button id="slideshowback">Previous</button>
+            <button id="slideshownext">Next</button>
+         </div>
+      </div>
+      <div class="footer">
+         {{>footer}}
+      </div>
+   </body>
+</html>

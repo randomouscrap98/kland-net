@@ -1,0 +1,9 @@
+<div class="linknavigation">
+   {{#previousPage}}
+   <a href="/image?page={{previousPage}}{{#bucket}}&bucket={{bucket}}{{/bucket}}{{#view}}&view={{view}}{{/view}}">Previous {{ipp}}</a>
+   {{/previousPage}}
+   {{#nextPage}}
+   <a href="/image?page={{nextPage}}{{#bucket}}&bucket={{bucket}}{{/bucket}}{{#view}}&view={{view}}{{/view}}">Next {{ipp}}</a>
+   {{/nextPage}}
+   <a data-slideshow>Slideshow</a>
+</div>

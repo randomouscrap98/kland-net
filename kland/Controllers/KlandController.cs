@@ -90,21 +90,12 @@ public class KlandController : ControllerBase
         };
     }
 
-    [HttpGet("thread/{id}")]
-    public async Task<IActionResult> GetThreadAsync([FromRoute]int id)
+    protected Task<List<PostView>> ConvertPosts(IQueryable<Post> query)
     {
-        var data = GetDefaultData();
-        var thread = await dbContext.Threads.Where(x => x.tid == id).FirstOrDefaultAsync();
-
-        if(thread == null || thread.deleted)
-            return NotFound();
-
-        var posts = dbContext.Posts.Include(x => x.Thread).Where(x => x.tid == id);
-
         //  return substr(base64_encode(hash("sha512", $this->tripRaw, true)), 0, 10);
         using(var sha512 = SHA512.Create())
         {
-            var realPosts = await posts.Select(x => new PostView
+            return query.Select(x => new PostView
             {
                 tid = x.tid,
                 pid = x.pid,
@@ -119,14 +110,50 @@ public class KlandController : ControllerBase
                 isBanned = false, //TODO: GET BANS
                 hasImage = !string.IsNullOrEmpty(x.image)
             }).OrderByDescending(x => x.tid).ToListAsync();
-
-            data["thread"] = thread;
-            data["posts"] = realPosts;
         }
+    }
+
+    [HttpGet("thread/{id}")]
+    public async Task<IActionResult> GetThreadAsync([FromRoute]int id)
+    {
+        var data = GetDefaultData();
+        var thread = await dbContext.Threads.Where(x => x.tid == id).FirstOrDefaultAsync();
+
+        if(thread == null || thread.deleted)
+            return NotFound();
+
+        var posts = dbContext.Posts.Include(x => x.Thread).Where(x => x.tid == id);
+
+        data["thread"] = thread;
+        data["posts"] = await ConvertPosts(posts);
 
         return new ContentResult{
             ContentType = "text/html",
             Content = await pageRenderer.RenderPageAsync("thread", data)
+        };
+    }
+
+    [HttpGet("image")]
+    public async Task<IActionResult> GetImageList([FromQuery]string bucket)
+    {
+        var data = GetDefaultData();
+        data["bucket"] = bucket;
+
+        //???
+        data["publicLink"] = "???";
+        data["readonly"] = false; //??
+        data["ipp"] = 50; //image per page
+        data["hideuploads"] = false; //???
+        data["previousPage"] = 1;
+        data["nextPage"] = 2;
+        data["view"] = "???";
+
+        //Are THESE the images to display???
+        data["pastImages"] = "???";
+
+        return new ContentResult{
+            ContentType = "text/html",
+            Content = await pageRenderer.RenderPageAsync("image", data)
         };
     }
 
