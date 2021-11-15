@@ -7,6 +7,7 @@ namespace kland.Controllers;
 
 public class KlandControllerConfig
 {
+    public string? StaticBase {get;set;}
     public string? Bucket {get;set;}
     public string? IdRegex {get;set;}
     public string? ETagPrepend {get;set;}

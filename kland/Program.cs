@@ -1,4 +1,5 @@
 using Amazon.S3;
+using kland;
 using kland.Controllers;
 using kland.Db;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,7 @@ services.AddDbContext<KlandDbContext>(opts =>
 
 //I want the ACTUAL configs in the service
 AddConfigBinding<KlandControllerConfig>(services, configuration);
+AddConfigBinding<RenderConfig>(services, configuration);
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -42,6 +44,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseStaticFiles();
 
 app.UseAuthorization();
 
