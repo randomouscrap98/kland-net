@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Amazon.S3;
 using kland.Db;
 using kland.Interfaces;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace kland.Controllers;
@@ -43,17 +44,27 @@ public class KlandController : ControllerBase
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
     }
 
+    protected Dictionary<string, object> GetDefaultData()
+    {
+        return new Dictionary<string, object>()
+        {
+            { "wwwrootversion", "1" },
+            { "isAdmin", false },
+            { "adminId", "" },
+            { "postStyle", "" },
+            { "requestUri", Request.GetDisplayUrl() }
+        };
+    }
+
     [HttpGet()]
     public async Task<ContentResult> GetIndexAsync()
     {
         //Need to look up threads? AND posts?? wow 
+        var data = GetDefaultData();
 
         return new ContentResult{
             ContentType = "text/html",
-            Content = await pageRenderer.RenderPageAsync("threads", new Dictionary<string, string>()
-            {
-
-            })
+            Content = await pageRenderer.RenderPageAsync("threads", data)
         };
     }
 

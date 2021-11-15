@@ -1,12 +1,7 @@
 using kland.Interfaces;
+using Stubble.Core.Builders;
 
 namespace kland;
-
-public class RenderConfig
-{
-    public string? TemplateLocation {get;set;}
-    public string? TemplateExtension {get;set;}
-}
 
 /// <summary>
 /// A class which renders mustache templates with given data using some default location provided in the constructor.
@@ -38,10 +33,15 @@ public class MustacheRenderer : IPageRenderer
         return result;
     }
 
-    public async Task<string> RenderPageAsync(string page, Dictionary<string, string> data)
+    public async Task<string> RenderPageAsync(string page, Dictionary<string, object> data)
     {
         var partials = await GetPartialsAsync();
         var pageRaw = await File.ReadAllTextAsync(Path.Join(config.TemplateLocation, page + config.TemplateExtension));
-        return Mustache.Template.Compile(pageRaw).Render(data, partials);
+
+        var stubble = new StubbleBuilder().Configure(s => {
+            s.AddToPartialTemplateLoader(new BasicFilePartialLoader(config));
+        }).Build();
+
+        return await stubble.RenderAsync(pageRaw, data);
     }
 }
