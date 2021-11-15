@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "kland", "kland\kland.csproj", "{1756F3E8-24E5-4441-9A3B-DB950CC859DC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "kland.test", "kland.test\kland.test.csproj", "{26907997-787B-41CE-B5A2-3C05489DDF70}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1756F3E8-24E5-4441-9A3B-DB950CC859DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1756F3E8-24E5-4441-9A3B-DB950CC859DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1756F3E8-24E5-4441-9A3B-DB950CC859DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1756F3E8-24E5-4441-9A3B-DB950CC859DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26907997-787B-41CE-B5A2-3C05489DDF70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26907997-787B-41CE-B5A2-3C05489DDF70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26907997-787B-41CE-B5A2-3C05489DDF70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26907997-787B-41CE-B5A2-3C05489DDF70}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
