@@ -2,8 +2,10 @@ using System.Text.RegularExpressions;
 using Amazon.S3;
 using kland.Db;
 using kland.Interfaces;
+using kland.Views;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace kland.Controllers;
 
@@ -13,12 +15,17 @@ public class KlandControllerConfig
     public string? Bucket {get;set;}
     public string? IdRegex {get;set;}
     public string? ETagPrepend {get;set;}
+    public string AdminId {get;set;} = "PLEASECHANGE";
+    public double CookieExpireHours {get;set;}
 }
 
 [ApiController]
 [Route("")] //Default route goes here?
 public class KlandController : ControllerBase
 {
+    public const string AdminIdKey = "adminId";
+    public const string PostStyleKey = "postStyle";
+
     private readonly ILogger _logger;
     protected KlandDbContext dbContext;
     protected IAmazonS3 s3client;
@@ -46,14 +53,21 @@ public class KlandController : ControllerBase
 
     protected Dictionary<string, object> GetDefaultData()
     {
+        var adminid = Request.Cookies[AdminIdKey] ?? "";
         return new Dictionary<string, object>()
         {
             { "wwwrootversion", "1" },
-            { "isAdmin", false },
-            { "adminId", "" },
-            { "postStyle", "" },
+            { "isAdmin", adminid == config.AdminId},
+            { AdminIdKey, adminid },
+            { PostStyleKey, Request.Cookies[PostStyleKey] ?? "" },
             { "requestUri", Request.GetDisplayUrl() }
         };
+    }
+
+    [HttpGet("robots.txt")]
+    public string GetRobots()
+    {
+        return "User-agent: *\nDisallow: /\n";
     }
 
     [HttpGet()]
@@ -61,11 +75,59 @@ public class KlandController : ControllerBase
     {
         //Need to look up threads? AND posts?? wow 
         var data = GetDefaultData();
+        var threads = dbContext.Threads.Include(x => x.Posts).Where(x => !x.deleted);
+        data["threads"] = threads.Select(x => new ThreadView
+        {
+            tid = x.tid,
+            subject = x.subject,
+            created = x.created,
+            postCount = x.Posts.Count(),
+            lastPostOn = x.Posts.Max(x => (DateTime?)x.created) ?? new DateTime(0),
+            link = $"/thread/{x.tid}",
+        }).OrderByDescending(x => x.tid).ToList();
 
         return new ContentResult{
             ContentType = "text/html",
             Content = await pageRenderer.RenderPageAsync("threads", data)
         };
+    }
+
+    [HttpPost("submitpost")]
+    public string SubmitPost()
+    {
+        return "kland is readonly for now, sorry";
+    }
+
+    public class SettingsForm
+    {
+        public string? adminid {get;set;}
+        public string? poststyle {get;set;}
+        public string? redirect {get;set;}
+    }
+
+
+    [HttpPost("settings")]
+    public IActionResult PostSettings([FromForm]SettingsForm form)
+    {
+        var options = new Microsoft.AspNetCore.Http.CookieOptions()
+        {
+            Path = "/",
+            Expires = DateTime.Now.AddHours(config.CookieExpireHours)
+        };
+
+        if(form.adminid == null) Response.Cookies.Delete(AdminIdKey);
+        else Response.Cookies.Append(AdminIdKey, form.adminid, options);
+
+        if(string.IsNullOrWhiteSpace(form.poststyle)) Response.Cookies.Delete(PostStyleKey);
+        else Response.Cookies.Append(PostStyleKey, form.poststyle, options);
+
+        return Redirect(form.redirect ?? "/");
+    }
+
+    [HttpPost("admin")]
+    public string PostAdmin()
+    {
+        return "kland is readonly for now, sorry";
     }
 
     [HttpGet("i/{id}")]

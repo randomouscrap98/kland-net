@@ -10,7 +10,7 @@
       </div>
         {{>postform}}
         <div class="threads">
-            {{#data.threads}}
+            {{#threads}}
             <div class="thread">
                 <a href="{{link}}">{{subject}}</a>
                 <time class="lastpost" datetime="{{lastPostOn}}">{{lastPostOn}}</time>
@@ -27,7 +27,7 @@
                 </form>
                 {{/isAdmin}}
             </div>
-            {{/data.threads}}
+            {{/threads}}
         </div>
         <div class="footer">
             {{>footer}}
