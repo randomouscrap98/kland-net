@@ -7,7 +7,7 @@ public class S3UploadStoreConfig
 {
     public string? Bucket {get;set;}
     public int MaxHashRetries {get;set;}
-    public TimeSpan MaxHashWait {get;set;}
+    public int MaxHashWait {get;set;}
 }
 
 public class S3UploadStore : IUploadStore

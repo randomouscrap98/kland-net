@@ -29,7 +29,16 @@ services.AddDbContext<KlandDbContext>(opts =>
 
 //Why are these singletons? They store no state, so why not!
 services.AddSingleton<IPageRenderer, MustacheRenderer>();
-services.AddSingleton<IUploadStore, S3UploadStore>();
+
+var storeType = configuration.GetValue<string>("UploadStore").ToLower();
+
+//Run different file stores based on user desire
+if(storeType == "local")
+    services.AddSingleton<IUploadStore, LocalStore>();
+else if(storeType == "s3")
+    services.AddSingleton<IUploadStore, S3UploadStore>();
+else
+    throw new InvalidOperationException("Unknown upload store type: " + storeType);
 
 //I want the ACTUAL configs in the service
 AddConfigBinding<KlandImageHostControllerConfig>(services, configuration);

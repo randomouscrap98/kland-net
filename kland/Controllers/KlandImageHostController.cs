@@ -171,8 +171,6 @@ public class KlandImageHostController: KlandBase
     public async Task<ActionResult<string>> UploadImage([FromForm]IFormFile image, [FromForm]string animation, [FromForm]string raw,
         [FromForm]string redirect, [FromForm]string url, [FromForm]string bucket, [FromForm]string shorturl)
     {
-        throw new NotImplementedException("Almost done!");
-
         //Image is the "standard" form upload, but sometimes users can submit "raw" images in the standard base64 
         //blob format that you can insert into image src.
         //Redirect is just that: the url to redirect to?
