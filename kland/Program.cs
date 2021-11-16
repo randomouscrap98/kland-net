@@ -27,10 +27,13 @@ services.AddDbContext<KlandDbContext>(opts =>
     opts.UseSqlite(builder.Configuration.GetConnectionString("kland"));
 });
 
+//Why are these singletons? They store no state, so why not!
 services.AddSingleton<IPageRenderer, MustacheRenderer>();
+services.AddSingleton<IUploadStore, S3UploadStore>();
 
 //I want the ACTUAL configs in the service
 AddConfigBinding<KlandImageHostControllerConfig>(services, configuration);
+AddConfigBinding<S3UploadStoreConfig>(services, configuration);
 AddConfigBinding<KlandControllerConfig>(services, configuration);
 AddConfigBinding<RenderConfig>(services, configuration);
 

@@ -3,25 +3,30 @@ using Amazon.S3;
 using kland.Db;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
 
 namespace kland.Controllers;
 
 public class KlandImageHostControllerConfig
 {
-    public string? Bucket {get;set;}
     public string? IdRegex {get;set;}
     public string? AIdRegex {get;set;}
     public string? ETagPrepend {get;set;}
     public string? ShortHost {get;set;}
     public string? RawImageFormat {get;set;}
+    public int HashLength {get;set;}
     public int MaxImageSize {get;set;}
+    public int MaxHashRetries {get;set;}
+
+    public TimeSpan MaxHashLockWait {get;set;} = TimeSpan.FromSeconds(30);
 }
 
 [ApiController]
 [Route("")] //Default route goes here too?
 public class KlandImageHostController: KlandBase
 {
-    protected IAmazonS3 s3client;
+    protected IUploadStore uploadStore;
     protected KlandImageHostControllerConfig config;
     protected Regex idRegex;
     protected Regex aidRegex;
@@ -31,22 +36,17 @@ public class KlandImageHostController: KlandBase
     public static readonly object ThreadHashLock = new object();
 
     public KlandImageHostController(ILogger<KlandController> logger, KlandDbContext dbContext, IAmazonS3 s3client,
-        KlandImageHostControllerConfig config) : base(logger, dbContext)
+        KlandImageHostControllerConfig config, IUploadStore uploadStore) : base(logger, dbContext)
     {
-        this.s3client = s3client;
         this.config = config;
-
-        //Just don't even bother if the config has no bucket. We want to immediately know when this is broken,
-        //so it's ok to break the entire kland for this!
-        if(string.IsNullOrWhiteSpace(config.Bucket))
-            throw new InvalidOperationException("No bucket set for images!");
+        this.uploadStore = uploadStore;
 
         idRegex = new Regex(config.IdRegex ?? throw new InvalidOperationException("No image ID regex!"), RegexOptions.IgnoreCase);
         aidRegex = new Regex(config.AIdRegex ?? throw new InvalidOperationException("No alt ID regex!"), RegexOptions.IgnoreCase);
         rawImgRegex = new Regex(config.RawImageFormat ?? throw new InvalidOperationException("No raw image regex!"), RegexOptions.IgnoreCase);
     }
 
-    protected async Task<IActionResult> GetS3(string id, Regex regex, Func<Match, string> mimeGenerator)
+    protected async Task<IActionResult> GetGeneralFile(string id, Regex regex, Func<Match, string> mimeGenerator)
     {
         var match = regex.Match(id);
 
@@ -56,56 +56,42 @@ public class KlandImageHostController: KlandBase
         //Go get it from s3
         try
         {
-            var obj = await s3client.GetObjectAsync(config.Bucket, id);
+            var data = await uploadStore.GetDataAsync(id);
             Response.Headers.Add("ETag", config.ETagPrepend + id);
-            return File(obj.ResponseStream, mimeGenerator(match));
-            //"image/" + match.Groups[1].Value?.TrimStart('.')); 
+            return File(data, mimeGenerator(match));
         }
         catch(Exception ex)
         {
-            logger.LogError($"Exception during S3 request: {ex}");
+            logger.LogError($"Exception during general file request: {ex}");
             return NotFound();
         }
     }
 
-    [HttpGet("i/{id}")]
-    [ResponseCache(Duration = 13824000)] //six months
-    public Task<IActionResult> GetImageAsync([FromRoute] string id) //, [FromQuery] GetFileModify modify)
+    //This BLOCKS, could bog down the server requests?
+    protected async Task<string> GetNewThreadHashAsync(int hashLength)
     {
-        return GetS3(id, idRegex, m => "image/" + m.Groups[1].Value?.TrimStart('.')); 
-    }
+        if(Monitor.TryEnter(ThreadHashLock, config.MaxHashLockWait))
+        {
+            try
+            {
+                string hash = "";
 
-    [HttpGet("a/{id}")]
-    [ResponseCache(Duration = 13824000)] //six months
-    public Task<IActionResult> GetTextAsync([FromRoute] string id)
-    {
-        return GetS3(id, aidRegex, m => "text/plain");
-    }
+                do
+                {
+                    hash = GetRandomAlphaString(hashLength);
+                } while (await dbContext.Threads.FirstOrDefaultAsync(x => x.hash == hash) != null);
 
-    [HttpPost("uploadtext")]
-    public IActionResult PostText()
-    {
-        return BadRequest("Sorry, the animation uploader is not implemented anymore! If it's needed, it can be added again!");
-    }
-
-    public class KlandImageUploadData
-    {
-        public string? extension {get;set;}
-        public byte[] data {get;set;} = new byte[0];
-    }
-
-    protected KlandImageUploadData ParseRawImageString(string raw)
-    {
-        var result = new KlandImageUploadData();
-        var match = rawImgRegex.Match(raw);
-
-        if(!match.Success)
-            throw new InvalidOperationException($"Bad raw image format! Needs to be: {config.RawImageFormat}");
-        
-        result.extension = match.Groups[1].Value;
-        result.data = Convert.FromBase64String(match.Groups[2].Value);
-
-        return result;
+                return hash;
+            }
+            finally
+            {
+                Monitor.Exit(ThreadHashLock);
+            }
+        }
+        else
+        {
+            throw new InvalidOperationException($"Couldn't acquire thread hash lock! Max wait: {config.MaxHashLockWait}");
+        }
     }
 
     protected async Task<kland.Db.Thread> GetOrCreateBucketThread(string bucket)
@@ -118,6 +104,7 @@ public class KlandImageHostController: KlandBase
         if(thread == null)
         {
             logger.LogDebug($"Bucket thread '{subject}' not found, adding");
+
             thread = new kland.Db.Thread()
             {
                 subject = subject,
@@ -129,7 +116,55 @@ public class KlandImageHostController: KlandBase
             logger.LogInformation($"Added Bucket thread '{subject}'");
         }
 
+        if(string.IsNullOrEmpty(thread.hash))
+        {
+            logger.LogDebug($"Thread {subject} has no hash, generating now");
+            thread.hash = await GetNewThreadHashAsync(config.HashLength);
+            await dbContext.SaveChangesAsync();
+            logger.LogInformation($"Generated hash {thread.hash} for thread {thread.subject}");
+        }
+
         return thread;
+    }
+
+    [HttpGet("i/{id}")]
+    [ResponseCache(Duration = 13824000)] //six months
+    public Task<IActionResult> GetImageAsync([FromRoute] string id)
+    {
+        return GetGeneralFile(id, idRegex, m => "image/" + m.Groups[1].Value?.TrimStart('.')); 
+    }
+
+    [HttpGet("a/{id}")]
+    [ResponseCache(Duration = 13824000)] //six months
+    public Task<IActionResult> GetTextAsync([FromRoute] string id)
+    {
+        return GetGeneralFile(id, aidRegex, m => "text/plain");
+    }
+
+    [HttpPost("uploadtext")]
+    public IActionResult PostText()
+    {
+        return BadRequest("Sorry, the animation uploader is not implemented anymore! If it's needed, it can be added again!");
+    }
+
+    public class KlandImageData
+    {
+        public byte[] data {get;set;} = new byte[0];
+        public string mimetype {get;set;} = "";
+    }
+
+    protected KlandImageData ParseRawImageString(string raw)
+    {
+        var match = rawImgRegex.Match(raw);
+
+        if(!match.Success)
+            throw new InvalidOperationException($"Bad raw image format! Needs to be: {config.RawImageFormat}");
+        
+        return new KlandImageData()
+        {
+            mimetype = match.Groups[1].Value,
+            data = Convert.FromBase64String(match.Groups[2].Value)
+        };
     }
 
     [HttpPost("uploadimage")]
@@ -154,17 +189,15 @@ public class KlandImageHostController: KlandBase
         //This won't be the user's fault if this fails, so let internal server errors happen
         bucketThread = await GetOrCreateBucketThread(bucket);
 
-        KlandImageUploadData data = new KlandImageUploadData();
+        KlandImageData imageData = new KlandImageData();
 
         //A REAL image was given in the form! This is hopefully the default
         if(!string.IsNullOrWhiteSpace(image?.FileName))
         {
-            data.extension = Path.GetExtension(image.FileName);
-
             using(var stream = new MemoryStream())
             {
                 await image.CopyToAsync(stream);
-                data.data = stream.ToArray(); //regardless of position
+                imageData.data = stream.ToArray(); //regardless of position
             }
         }
         //Ah, they gave us raw data. That's ok too
@@ -172,7 +205,8 @@ public class KlandImageHostController: KlandBase
         {
             try
             {
-                data = ParseRawImageString(raw);
+                //Note: even though we retrieve a full image data, we ignore the mimetype given by the users.
+                imageData = ParseRawImageString(raw);
             }
             catch(Exception ex)
             {
@@ -189,12 +223,35 @@ public class KlandImageHostController: KlandBase
             return BadRequest("Can't understand the request! Must provide either form image, raw, or animation");
         }
 
-        if(data.data.Length > config.MaxImageSize)
+        if(imageData.data.Length > config.MaxImageSize)
             return BadRequest($"Image too large! Max size: {config.MaxImageSize}");
-        else if(data.data.Length <= 0)
+        else if(imageData.data.Length <= 0)
             return BadRequest($"No image seems to have been given! Length 0!");
 
-        
+        string extension = "";
+
+        try
+        {
+            IImageFormat format;
+
+            //This is JUST to see if it's an image (and get the format)
+            using (var img = Image.Load(imageData.data, out format))
+            {
+                extension = format.FileExtensions.First();
+                imageData.mimetype = format.DefaultMimeType;
+            }
+        }
+        catch(Exception ex)
+        {
+            logger.LogWarning($"Couldn't test image: {ex}");
+            return BadRequest("Couldn't parse image data into image!");
+        }
+
+        //And NOW we upload? We tell the uploader how to generate names if there are collisions (this is how kland works),
+        //and some uploaders require the mimetype, so give that too
+        finalImageName = await uploadStore.PutDataAsync(imageData.data, 
+            () => $"{GetRandomAlphaString(config.HashLength)}.{extension}", imageData.mimetype);
+
         if(realShort)
             imageUrl = $"{config.ShortHost}/{finalImageName}";
         

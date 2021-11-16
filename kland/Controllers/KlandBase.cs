@@ -62,5 +62,4 @@ public class KlandBase : ControllerBase
             }).OrderByDescending(x => x.tid).ToListAsync();
         }
     }
-
 }
