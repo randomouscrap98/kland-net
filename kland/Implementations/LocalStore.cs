@@ -12,7 +12,10 @@ public class LocalStore : IUploadStore
     protected ILogger logger;
     protected LocalStoreConfig config;
 
-    protected readonly object HashLock = new object();
+    //Semaphores are a primitive locking mechanism (basically a countdown number, see the '1') that ensures
+    //nobody can get past the semaphore "grab" until someone else releases it. It's the only locking 
+    //primitive that works with "await"
+    protected SemaphoreSlim hashLock = new SemaphoreSlim(1);
 
     public LocalStore(ILogger<LocalStore> logger, LocalStoreConfig config)
     {
@@ -32,7 +35,7 @@ public class LocalStore : IUploadStore
 
     public async Task<string> PutDataAsync(byte[] data, Func<string> nameGenerator, string mimeType)
     {
-        if(Monitor.TryEnter(HashLock, config.MaxHashWait))
+        if(await hashLock.WaitAsync(config.MaxHashWait))
         {
             try
             {
@@ -67,7 +70,7 @@ public class LocalStore : IUploadStore
             }
             finally
             {
-                Monitor.Exit(HashLock);
+                hashLock.Release();
             }
         }
         else

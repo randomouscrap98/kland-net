@@ -268,6 +268,8 @@ public class KlandImageHostController: KlandBase
 
         if(realShort)
             imageUrl = $"{config.ShortHost}/{finalImageName}";
+        else
+            imageUrl = $"{Request.Scheme}://{Request.Host}/i/{finalImageName}";
         
         if(realRedirect)
             return Redirect(imageUrl);

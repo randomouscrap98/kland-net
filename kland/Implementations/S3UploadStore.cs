@@ -18,7 +18,7 @@ public class S3UploadStore : IUploadStore
     
     //You MUST be careful! If you generate multiple upload stores that point to the same bucket,
     //this hash locking mechanism will NOT work!
-    protected readonly object HashLock = new Object();
+    protected SemaphoreSlim hashLock = new SemaphoreSlim(1);
 
     public S3UploadStore(ILogger<S3UploadStore> logger, S3UploadStoreConfig config, IAmazonS3 client)
     {
@@ -44,7 +44,7 @@ public class S3UploadStore : IUploadStore
 
     public async Task<string> PutDataAsync(byte[] data, Func<string> nameGenerator, string mimeType)
     {
-        if(Monitor.TryEnter(HashLock, config.MaxHashWait))
+        if(await hashLock.WaitAsync(config.MaxHashWait))
         {
             try
             {
@@ -89,7 +89,7 @@ public class S3UploadStore : IUploadStore
             }
             finally
             {
-                Monitor.Exit(HashLock);
+                hashLock.Release();
             }
         }
         else
