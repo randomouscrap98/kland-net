@@ -105,6 +105,7 @@ public class KlandController : KlandBase
         var ipp = query.ipp ?? 20;
         int.TryParse(Request.Cookies["ipp"], out ipp);
         if(page < 1) page = 1;
+        if(ipp <= 0) ipp = 20;
 
         data["bucket"] = bucket;
         data["ipp"] = ipp;
