@@ -98,7 +98,6 @@ input[type="file"] {
     float: left;
 }
 .postimage {
-   display: inline-block;
    float: left;
    overflow: hidden;
    background-color: rgba(0,0,0,0.05);
