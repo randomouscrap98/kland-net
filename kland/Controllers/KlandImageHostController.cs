@@ -19,6 +19,7 @@ public class KlandImageHostControllerConfig
     public int MaxImageSize {get;set;}
     public int MaxHashRetries {get;set;}
     public string? IpHeader {get;set;}
+    public string? LinkScheme {get;set;}
 
     public TimeSpan MaxHashLockWait {get;set;} = TimeSpan.FromSeconds(30);
 }
@@ -269,7 +270,7 @@ public class KlandImageHostController: KlandBase
         if(realShort)
             imageUrl = $"{config.ShortHost}/{finalImageName}";
         else
-            imageUrl = $"{Request.Scheme}://{Request.Host}/i/{finalImageName}";
+            imageUrl = $"{config.LinkScheme ?? Request.Scheme}://{Request.Host}/i/{finalImageName}";
         
         if(realRedirect)
             return Redirect(imageUrl);
