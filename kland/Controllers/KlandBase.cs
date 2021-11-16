@@ -35,10 +35,10 @@ public class KlandBase : ControllerBase
         return builder.ToString();
     }
 
-    protected bool StringToBool(string value)
+    protected bool StringToBool(string? value)
     {
-        value = value.Trim().ToLower();
-        return value != null && value != "0" && value != "false" && value != "undefined" && value != "null";
+        value = value?.Trim()?.ToLower();
+        return !string.IsNullOrEmpty(value) && value != "0" && value != "false" && value != "undefined" && value != "null";
     }
 
     protected Task<List<PostView>> ConvertPosts(IQueryable<Post> query)

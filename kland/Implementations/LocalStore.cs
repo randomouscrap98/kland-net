@@ -4,7 +4,7 @@ public class LocalStoreConfig
 {
     public string? Folder {get;set;}
     public int MaxHashRetries {get;set;}
-    public int MaxHashWait {get;set;}
+    public TimeSpan MaxHashWait {get;set;}
 }
 
 public class LocalStore : IUploadStore
@@ -36,6 +36,9 @@ public class LocalStore : IUploadStore
         {
             try
             {
+                if(!Directory.Exists(config.Folder))
+                    Directory.CreateDirectory(config.Folder ?? throw new InvalidOperationException("No config folder set!"));
+
                 string name = "";
                 string path = "";
 

@@ -18,6 +18,7 @@ public class KlandImageHostControllerConfig
     public int HashLength {get;set;}
     public int MaxImageSize {get;set;}
     public int MaxHashRetries {get;set;}
+    public string? IpHeader {get;set;}
 
     public TimeSpan MaxHashLockWait {get;set;} = TimeSpan.FromSeconds(30);
 }
@@ -94,7 +95,7 @@ public class KlandImageHostController: KlandBase
         }
     }
 
-    protected async Task<kland.Db.Thread> GetOrCreateBucketThread(string bucket)
+    protected async Task<kland.Db.Thread> GetOrCreateBucketThread(string? bucket)
     {
         //Go find the thread first off
         var subject = OrphanedPrepend + (string.IsNullOrEmpty(bucket) ? "" : $"_{bucket}");
@@ -168,8 +169,8 @@ public class KlandImageHostController: KlandBase
     }
 
     [HttpPost("uploadimage")]
-    public async Task<ActionResult<string>> UploadImage([FromForm]IFormFile image, [FromForm]string animation, [FromForm]string raw,
-        [FromForm]string redirect, [FromForm]string url, [FromForm]string bucket, [FromForm]string shorturl)
+    public async Task<ActionResult<string>> UploadImage([FromForm]IFormFile? image, [FromForm]string? animation, [FromForm]string? raw,
+        [FromForm]string? redirect, [FromForm]string? url, [FromForm]string? bucket, [FromForm]string? shorturl)
     {
         //Image is the "standard" form upload, but sometimes users can submit "raw" images in the standard base64 
         //blob format that you can insert into image src.
@@ -178,6 +179,8 @@ public class KlandImageHostController: KlandBase
         bool realShort = StringToBool(shorturl);
         string imageUrl = "";
         string finalImageName = "";
+        var ipaddress = Request.Headers[config.IpHeader ?? throw new InvalidOperationException("No header field for ip tracking set!")]
+            .FirstOrDefault() ?? "unknown";
 
         //url is part of an admin task and can be omitted for now
         if(!string.IsNullOrEmpty(url))
@@ -251,6 +254,17 @@ public class KlandImageHostController: KlandBase
         //and some uploaders require the mimetype, so give that too
         finalImageName = await uploadStore.PutDataAsync(imageData.data, 
             () => $"{GetRandomAlphaString(config.HashLength)}.{extension}", imageData.mimetype);
+        
+        var post = new Post()
+        {
+            content = "orphanedImage",
+            ipaddress = ipaddress,
+            image = finalImageName,
+            tid = bucketThread.tid
+        };
+
+        dbContext.Posts.Add(post);
+        await dbContext.SaveChangesAsync();
 
         if(realShort)
             imageUrl = $"{config.ShortHost}/{finalImageName}";

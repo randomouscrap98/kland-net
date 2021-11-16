@@ -40,11 +40,13 @@ else if(storeType == "s3")
 else
     throw new InvalidOperationException("Unknown upload store type: " + storeType);
 
-//I want the ACTUAL configs in the service
+//I want the ACTUAL configs in the service. Each key should be the exact name of the type,
+//all the fields the same names as the object too.
 AddConfigBinding<KlandImageHostControllerConfig>(services, configuration);
 AddConfigBinding<S3UploadStoreConfig>(services, configuration);
 AddConfigBinding<KlandControllerConfig>(services, configuration);
 AddConfigBinding<RenderConfig>(services, configuration);
+AddConfigBinding<LocalStoreConfig>(services, configuration);
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -59,8 +61,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
