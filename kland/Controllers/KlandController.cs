@@ -1,3 +1,4 @@
+using System.Runtime;
 using kland.Db;
 using kland.Interfaces;
 using kland.Views;
@@ -32,7 +33,8 @@ public class KlandController : KlandBase
         var adminid = Request.Cookies[AdminIdKey] ?? "";
         return new Dictionary<string, object>()
         {
-            { "wwwrootversion", GetType().Assembly.GetName().Version?.ToString() ?? "UNKNOWN" },
+            { "appversion", GetType().Assembly.GetName().Version?.ToString() ?? "UNKNOWN" },
+            { "isgcserver", GCSettings.IsServerGC },
             { "isAdmin", adminid == config.AdminId},
             { AdminIdKey, adminid },
             { PostStyleKey, Request.Cookies[PostStyleKey] ?? "" },
@@ -137,6 +139,7 @@ public class KlandController : KlandBase
             var postQuery = dbContext.Posts.Where(x => x.tid == thread.tid).OrderByDescending(x => x.pid).Skip((page - 1) * ipp).Take(ipp);
             data["pastImages"] = await ConvertPosts(postQuery);
         }
+
 
         return new ContentResult{
             ContentType = "text/html",

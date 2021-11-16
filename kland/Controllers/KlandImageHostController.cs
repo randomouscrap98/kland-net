@@ -122,6 +122,7 @@ public class KlandImageHostController: KlandBase
         {
             logger.LogDebug($"Thread {subject} has no hash, generating now");
             thread.hash = await GetNewThreadHashAsync(config.HashLength);
+            dbContext.Threads.Update(thread);
             await dbContext.SaveChangesAsync();
             logger.LogInformation($"Generated hash {thread.hash} for thread {thread.subject}");
         }

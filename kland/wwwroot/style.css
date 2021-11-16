@@ -221,6 +221,14 @@ s-p:hover {
    font-size: 0.8rem;
    margin: 0.2em;
 }
+.about {
+    font-size: 0.6em;
+    opacity: 0.5;
+    float: right;
+}
+.about > * {
+    margin-right: 0.5em;
+}
 .imagelist img {
    max-width: 75%;
    max-height: 150px;

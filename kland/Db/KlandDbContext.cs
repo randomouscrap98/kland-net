@@ -10,6 +10,7 @@ public class KlandDbContext : DbContext
 
     public KlandDbContext(DbContextOptions<KlandDbContext> options) : base(options)
     {
+        this.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
 }
