@@ -4,8 +4,12 @@ using kland.Db;
 using kland.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Gif;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing.Processors.Quantization;
 
 namespace kland.Controllers;
 
@@ -157,6 +161,15 @@ public class KlandImageHostController: KlandBase
         public string mimetype {get;set;} = "";
     }
 
+    public class KlandAnimation
+    {
+        public int version {get;set;}
+        public string defaultFrames {get;set;} = "1";
+        public bool repeat {get;set;}
+        public List<int> times {get;set;} = new List<int>();
+        public List<string> data {get;set;} = new List<string>();
+    }
+
     protected KlandImageData ParseRawImageString(string raw)
     {
         var match = rawImgRegex.Match(raw);
@@ -222,7 +235,47 @@ public class KlandImageHostController: KlandBase
         }
         else if(!string.IsNullOrEmpty(animation))
         {
-            return BadRequest("Can't handle animations yet!");
+            //First need to json decode it. Animation is just a string in the query
+            var realAnimation = JsonConvert.DeserializeObject<KlandAnimation>(animation) ?? throw new InvalidOperationException("Animation parsed to null!");
+            var defaultFrames = int.Parse(realAnimation.defaultFrames);
+
+            //Then, we need to use imagesharp to compose an animation
+
+            //WARN: WE ASSUME THE ANIMATIONS ARE A SPECIFIC SIZE!! There's an easy fix (check the first frame), but whatever!
+            using(var gif = new Image<Rgba32>(200, 100))
+            {
+                //Don't know if I need both of these (and the encoder below while saving) but
+                gif.Metadata.GetFormatMetadata(GifFormat.Instance).ColorTableMode = GifColorTableMode.Local;
+
+                for(var i = 0; i < realAnimation.data.Count; i++)
+                {
+                    var imgData = ParseRawImageString(realAnimation.data[i]);
+                    using(var frameImage = Image.Load<Rgba32>(imgData.data))
+                    {
+                        var frame = frameImage.Frames[0];
+                        var delay = realAnimation.times[i] != 0 ? realAnimation.times[i] : defaultFrames;
+                        frame.Metadata.GetGifMetadata().FrameDelay = (int)Math.Round(100.0 / 60 * delay);
+                        gif.Frames.AddFrame(frame);
+                    }
+                }
+
+                //What a weird thing to have to do...
+                gif.Frames.RemoveFrame(0);
+                gif.Metadata.GetGifMetadata().RepeatCount = (ushort)(realAnimation.repeat ? 0 : 1);
+
+                var encoder = new GifEncoder()
+                {
+                    ColorTableMode = GifColorTableMode.Local,
+                    Quantizer = new OctreeQuantizer(new QuantizerOptions() { MaxColors = 4 })
+                };
+
+                using(var memStream = new MemoryStream())
+                {
+                    await gif.SaveAsGifAsync(memStream, encoder);
+                    imageData.data = memStream.ToArray();
+                    imageData.mimetype = "image/gif";
+                }
+            }
         }
         else
         {
