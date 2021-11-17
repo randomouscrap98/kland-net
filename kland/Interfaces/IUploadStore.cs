@@ -1,4 +1,4 @@
-namespace kland;
+namespace kland.Interfaces;
 
 public interface IUploadStore
 {

@@ -1,3 +1,5 @@
+using kland.Interfaces;
+
 namespace kland;
 
 public class LocalStoreConfig

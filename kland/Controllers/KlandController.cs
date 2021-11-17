@@ -55,7 +55,7 @@ public class KlandController : KlandBase
         {
             tid = x.tid,
             subject = x.subject,
-            created = x.created,
+            createdOn = x.created,
             postCount = x.Posts.Count(),
             lastPostOn = x.Posts.Max(x => (DateTime?)x.created) ?? new DateTime(0),
             link = $"/thread/{x.tid}",
