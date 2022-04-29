@@ -314,6 +314,7 @@ public class KlandImageHostController: KlandBase
         var post = new Post()
         {
             content = "orphanedImage",
+            created = DateTime.Now,
             ipaddress = ipaddress,
             image = finalImageName,
             tid = bucketThread.tid
