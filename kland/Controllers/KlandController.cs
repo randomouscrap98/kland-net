@@ -140,6 +140,9 @@ public class KlandController : KlandBase
             data["pastImages"] = await ConvertPosts(postQuery);
         }
 
+        if(query.asJSON)
+            return new JsonResult(data);
+
 
         return new ContentResult{
             ContentType = "text/html",
