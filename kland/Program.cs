@@ -20,7 +20,7 @@ void AddConfigBinding<T>(IServiceCollection services, IConfiguration config) whe
     services.AddTransient<T>(p => (p.GetService<IOptionsMonitor<T>>() ?? throw new InvalidOperationException($"Mega config failure on {name}!")).CurrentValue);
 }
 
-services.AddCors();
+//services.AddCors();
 services.AddDefaultAWSOptions(configuration.GetAWSOptions());
 services.AddAWSService<IAmazonS3>();
 services.AddDbContext<KlandDbContext>(opts =>
@@ -63,13 +63,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors(builder =>
-{
-    builder
-    .AllowAnyOrigin()
-    .AllowAnyMethod()
-    .AllowAnyHeader();
-});
+//app.UseCors(builder =>
+//{
+//    builder
+//    .AllowAnyOrigin()
+//    .AllowAnyMethod()
+//    .AllowAnyHeader();
+//});
 
 app.UseStaticFiles();
 
